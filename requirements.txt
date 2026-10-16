@@ -1,0 +1,4 @@
+anthropic>=0.30.0
+firecrawl-py>=0.0.16
+requests>=2.31.0
+beautifulsoup4>=4.12.0

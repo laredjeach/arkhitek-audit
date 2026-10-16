@@ -1,0 +1,42 @@
+{
+  "_comments": {
+    "region": "Target region — city, county, metro, or state. e.g. 'Ventura County, CA' or 'Los Angeles, CA'",
+    "niche": "Business type slug matching a file in lenses/. e.g. 'personal-injury-lawyer', 'dental', 'med-spa', 'general'",
+    "business_type": "Human-readable business type used in search queries and email copy. e.g. 'personal injury lawyer'",
+    "max_results": "Maximum prospects to discover in Leg 1",
+    "min_score": "Minimum lead score (0-100) to keep a prospect. Scores under 45 are usually weak fit.",
+    "audit_limit": "How many prospects to send through Leg 2 audit. 0 = all.",
+    "email_limit": "How many audited prospects to draft emails for in Leg 3. 0 = all.",
+    "discovery_sources": "Ordered list of discovery sources to try. Options: firecrawl, serpapi, google_cse, bing, duckduckgo",
+    "delay_seconds": "Seconds to wait between requests. Increase if you see rate limiting.",
+    "handoff": "Deprecated field kept for legacy compatibility. Use legs config instead.",
+    "sender_name": "Your name for email signatures",
+    "sender_company": "Your company name for email signatures",
+    "required_terms": "Optional list of terms that must appear on a prospect's site to qualify",
+    "target_platforms": "Optional list of platforms to filter for. e.g. ['WordPress', 'Wix', 'Squarespace']",
+    "excluded_domains": "Additional domains to skip during discovery",
+    "seed_urls": "Optional hand-collected URLs to enrich, bypassing search discovery",
+    "queries": "Search query templates. {business_type} and {region} are interpolated."
+  },
+  "region": "Ventura County, CA",
+  "niche": "personal-injury-lawyer",
+  "business_type": "personal injury lawyer",
+  "max_results": 50,
+  "min_score": 45,
+  "audit_limit": 10,
+  "email_limit": 10,
+  "discovery_sources": ["firecrawl", "serpapi", "bing", "duckduckgo"],
+  "delay_seconds": 1.0,
+  "sender_name": "Jared",
+  "sender_company": "Arkhitek",
+  "required_terms": [],
+  "target_platforms": [],
+  "excluded_domains": [],
+  "seed_urls": [],
+  "queries": [
+    "{business_type} {region}",
+    "{region} {business_type}",
+    "best {business_type} in {region}",
+    "{business_type} near {region}"
+  ]
+}
