@@ -1,5 +1,7 @@
 {
   "_comments": {
+    "input_mode": "'discovery' runs Leg 1 to find prospects first. 'direct' skips Leg 1 — use url_list or point leg2 at a CSV.",
+    "url_list": "For direct mode: list of URLs to audit. Alternatively pass --csv or --urls to the scripts directly.",
     "region": "Target region — city, county, metro, or state. e.g. 'Ventura County, CA' or 'Los Angeles, CA'",
     "niche": "Business type slug matching a file in lenses/. e.g. 'personal-injury-lawyer', 'dental', 'med-spa', 'general'",
     "business_type": "Human-readable business type used in search queries and email copy. e.g. 'personal injury lawyer'",
@@ -9,7 +11,6 @@
     "email_limit": "How many audited prospects to draft emails for in Leg 3. 0 = all.",
     "discovery_sources": "Ordered list of discovery sources to try. Options: firecrawl, serpapi, google_cse, bing, duckduckgo",
     "delay_seconds": "Seconds to wait between requests. Increase if you see rate limiting.",
-    "handoff": "Deprecated field kept for legacy compatibility. Use legs config instead.",
     "sender_name": "Your name for email signatures",
     "sender_company": "Your company name for email signatures",
     "required_terms": "Optional list of terms that must appear on a prospect's site to qualify",
@@ -18,6 +19,8 @@
     "seed_urls": "Optional hand-collected URLs to enrich, bypassing search discovery",
     "queries": "Search query templates. {business_type} and {region} are interpolated."
   },
+  "input_mode": "discovery",
+  "url_list": [],
   "region": "Ventura County, CA",
   "niche": "personal-injury-lawyer",
   "business_type": "personal injury lawyer",

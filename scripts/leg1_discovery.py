@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Leg 1: Multi-source prospect discovery for Arkhitek outreach.
+Leg 1: Multi-source prospect discovery for Arkhitek Audit.
 
 Discovers businesses by region and niche, enriches each site with lightweight
 SEO/audit signals, and appends to leads/prospects.csv (deduplicated by URL).

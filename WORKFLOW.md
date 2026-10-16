@@ -1,4 +1,4 @@
-# Arkhitek Outreach — 4-Leg Pipeline
+# Arkhitek Audit — 4-Leg Pipeline
 
 The canonical specification for the outreach system. Each leg is independently runnable and retryable.
 

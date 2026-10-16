@@ -1,4 +1,4 @@
-# arkhitek-outreach
+# arkhitek-audit
 
 A 4-leg pipeline for discovering local service business prospects, auditing their websites, and drafting personalized cold outreach emails.
 
@@ -23,8 +23,8 @@ All state lives in `leads/prospects.csv`. Legs are independently retryable.
 
 ```bash
 # 1. Clone and set up
-git clone https://github.com/laredjeach/arkhitek-outreach
-cd arkhitek-outreach
+git clone https://github.com/laredjeach/arkhitek-audit
+cd arkhitek-audit
 pip install -r requirements.txt
 
 # 2. Set environment variables
@@ -214,7 +214,7 @@ See `WORKFLOW.md` for the full n8n automation sequence.
 ## File Structure
 
 ```
-arkhitek-outreach/
+arkhitek-audit/
 ├── README.md
 ├── WORKFLOW.md               # Full pipeline spec
 ├── .env.example              # API keys reference

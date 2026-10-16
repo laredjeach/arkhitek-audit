@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Campaign orchestrator for Arkhitek outreach.
+Campaign orchestrator for Arkhitek Audit.
 
 Chains Leg 1 (discovery) → Leg 2 (audit) → Leg 3 (email drafting) in sequence.
-Each leg can be run independently; this script chains them for a full campaign run.
+Each leg can be run independently. Use --input to skip Leg 1 and feed any
+CSV or URL list directly into the audit engine.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ def run_leg(script: str, extra_args: list[str]) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Run a full Arkhitek outreach campaign (Leg 1 → Leg 2 → Leg 3).",
+        description="Run a full Arkhitek Audit campaign (Leg 1 → Leg 2 → Leg 3).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -46,6 +47,12 @@ Examples:
   # Audit + draft only (use when prospects.csv already has rows)
   python3 scripts/run_campaign.py --legs 2,3 --audit-limit 10
         """,
+    )
+    # Input source (--input skips Leg 1)
+    parser.add_argument(
+        "--input", metavar="PATH_OR_URL",
+        help="CSV file or URL to audit directly — skips Leg 1 discovery. "
+             "Accepts a .csv path or a single https:// URL.",
     )
     # Campaign scope
     parser.add_argument("--region", help="Target region for Leg 1 discovery")
@@ -70,6 +77,12 @@ Examples:
     args = parser.parse_args()
 
     legs = [l.strip() for l in args.legs.split(",") if l.strip()]
+
+    # --input bypasses Leg 1 entirely
+    if args.input:
+        legs = [l for l in legs if l != "1"]
+        print(f"[campaign] --input provided — skipping Leg 1, feeding {args.input!r} into Leg 2", file=sys.stderr)
+
     exit_code = 0
 
     if "1" in legs:
@@ -97,6 +110,11 @@ Examples:
 
     if "2" in legs:
         leg2_args = ["--limit", str(args.audit_limit), "--delay", str(max(args.delay, 2.0))]
+        if args.input:
+            if args.input.startswith("http"):
+                leg2_args += ["--urls", args.input]
+            else:
+                leg2_args += ["--csv", args.input]
         if args.rerun_failed:
             leg2_args.append("--rerun-failed")
         rc = run_leg("leg2_audit.py", leg2_args)

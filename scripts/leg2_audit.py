@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-Leg 2: Deep site audit for Arkhitek outreach.
+Leg 2: Deep site audit engine for Arkhitek.
 
-Reads leads/prospects.csv, finds rows where audit_status is empty, scrapes
-each site (Firecrawl primary, requests fallback), sends content to Claude for
-structured analysis, writes a per-company audit report, and updates the CSV.
+Accepts any of:
+  --csv PATH       Any CSV with a 'website' column (or auto-detected URL column)
+  --urls u1 u2 …   One or more URLs directly on the command line
+  --domain DOMAIN  Single domain to audit
+  (no flag)        Defaults to leads/prospects.csv
+
+Scrapes each site (Firecrawl primary, requests fallback), calls Claude for
+structured analysis and a narrative report, writes per-company audit reports
+to runs/audits/, and updates the CSV in place.
 
 Claude output fields added to CSV:
   geo_score, gap_1, gap_2, gap_3, tech_gap, top_competitor,
@@ -380,13 +386,48 @@ def audit_one(row: dict, model: str, fc_key: str) -> dict:
     return row
 
 
+def rows_from_args(args: argparse.Namespace) -> tuple[list[dict], Path | None]:
+    """Return (rows_to_audit, csv_path_or_None). csv_path is set when we should write back."""
+    if args.urls:
+        rows = [{"website": u.strip(), "business_name": "", "niche_category": ""} for u in args.urls]
+        return rows, None
+    if args.domain:
+        domain = args.domain.strip()
+        if not domain.startswith("http"):
+            domain = "https://" + domain
+        rows = [{"website": domain, "business_name": "", "niche_category": ""}]
+        return rows, None
+
+    csv_path = Path(args.csv) if args.csv else PROSPECTS_CSV
+    rows = load_csv(csv_path)
+    if not rows:
+        return [], csv_path
+
+    # Auto-detect URL column if 'website' not present
+    if rows and "website" not in rows[0]:
+        url_col = next(
+            (k for k in rows[0] if any(s in k.lower() for s in ("url", "website", "domain", "site"))),
+            None,
+        )
+        if url_col:
+            for r in rows:
+                r["website"] = r[url_col]
+        else:
+            print(f"[leg2] Could not find a URL column in {csv_path}. Columns: {list(rows[0].keys())}", file=sys.stderr)
+            return [], csv_path
+
+    return rows, csv_path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Leg 2: Audit prospects from leads/prospects.csv using Firecrawl + Claude.",
+        description="Audit any website with Firecrawl + Claude. Points at any data source.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Reads rows where audit_status is empty. Writes audit reports to runs/audits/.
-Updates CSV in place.
+Input (choose one — defaults to leads/prospects.csv):
+  --csv PATH        Any CSV with a 'website' or URL column
+  --urls URL …      One or more URLs directly
+  --domain DOMAIN   Single domain to audit
 
 Required env var:
   ANTHROPIC_API_KEY
@@ -396,11 +437,19 @@ Optional env vars:
   ANTHROPIC_MODEL    model override (default: claude-sonnet-4-6)
 
 Examples:
-  python3 scripts/leg2_audit.py
+  python3 scripts/leg2_audit.py --domain lawdesai.com
+  python3 scripts/leg2_audit.py --urls https://site1.com https://site2.com
+  python3 scripts/leg2_audit.py --csv my-list.csv --limit 10
   python3 scripts/leg2_audit.py --limit 5
   python3 scripts/leg2_audit.py --rerun-failed
         """,
     )
+    # Input source
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument("--csv", metavar="PATH", help="CSV file with a URL column (default: leads/prospects.csv)")
+    input_group.add_argument("--urls", nargs="+", metavar="URL", help="One or more URLs to audit directly")
+    input_group.add_argument("--domain", metavar="DOMAIN", help="Single domain to audit (e.g. example.com)")
+    # Run control
     parser.add_argument("--limit", type=int, default=0, help="Max prospects to audit this run (0 = all pending)")
     parser.add_argument("--delay", type=float, default=2.0, help="Seconds between audits (default: 2.0)")
     parser.add_argument("--rerun-failed", action="store_true", help="Also re-audit rows marked audit_status=failed")
@@ -419,16 +468,20 @@ Examples:
     fc_key = os.environ.get("FIRECRAWL_API_KEY", "")
     model = ANTHROPIC_MODEL
 
-    rows = load_csv(PROSPECTS_CSV)
-    if not rows:
-        print("[leg2] No prospects found. Run leg1_discovery.py first.", file=sys.stderr)
-        return 0
+    all_rows, csv_path = rows_from_args(args)
 
-    pending = [
-        r for r in rows
-        if not r.get("audit_status")
-        or (args.rerun_failed and r.get("audit_status") == "failed")
-    ]
+    # For direct --urls/--domain input, audit all rows (no audit_status filtering)
+    if args.urls or args.domain:
+        pending = all_rows
+    else:
+        if not all_rows:
+            print("[leg2] No prospects found in CSV. Run leg1_discovery.py first or use --urls/--domain.", file=sys.stderr)
+            return 0
+        pending = [
+            r for r in all_rows
+            if not r.get("audit_status")
+            or (args.rerun_failed and r.get("audit_status") == "failed")
+        ]
 
     if args.limit > 0:
         pending = pending[: args.limit]
@@ -440,24 +493,30 @@ Examples:
         print(f"\n[leg2] [{idx}/{len(pending)}] {url}", file=sys.stderr)
         try:
             updated = audit_one(row, model, fc_key)
-            # Merge back into rows list by website match
-            for i, r in enumerate(rows):
+            # Merge updated row back into all_rows by website match
+            for i, r in enumerate(all_rows):
                 if r.get("website") == url:
-                    rows[i] = updated
+                    all_rows[i] = updated
                     break
+            else:
+                all_rows.append(updated)
         except Exception as exc:
             print(f"  [leg2] unexpected error: {exc}", file=sys.stderr)
-            for i, r in enumerate(rows):
+            for i, r in enumerate(all_rows):
                 if r.get("website") == url:
-                    rows[i]["audit_status"] = "failed"
-                    rows[i]["audit_date"] = date.today().isoformat()
+                    all_rows[i]["audit_status"] = "failed"
+                    all_rows[i]["audit_date"] = date.today().isoformat()
                     break
-        write_csv(PROSPECTS_CSV, rows)
+        # Write back to CSV after each row (checkpoint)
+        if csv_path:
+            write_csv(csv_path, all_rows)
         time.sleep(args.delay)
 
-    complete = sum(1 for r in rows if r.get("audit_status") == "complete")
-    failed = sum(1 for r in rows if r.get("audit_status") == "failed")
+    complete = sum(1 for r in all_rows if r.get("audit_status") == "complete")
+    failed = sum(1 for r in all_rows if r.get("audit_status") == "failed")
     print(f"\n[leg2] Done. {complete} complete, {failed} failed.", file=sys.stderr)
+    if not csv_path:
+        print("[leg2] Audit reports written to runs/audits/", file=sys.stderr)
     return 0
 
 
